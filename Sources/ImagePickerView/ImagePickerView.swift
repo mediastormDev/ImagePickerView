@@ -13,15 +13,29 @@ public struct ImagePickerView: UIViewControllerRepresentable {
     
     public typealias UIViewControllerType = PHPickerViewController
     
-    public init(filter: PHPickerFilter = .images, selectionLimit: Int = 1, delegate: PHPickerViewControllerDelegate) {
+    public init(
+        filter: PHPickerFilter = .images,
+        selectionLimit: Int = 1,
+        didCancel: @escaping (PHPickerViewController) -> (),
+        didSelect: @escaping (ImagePickerResult) -> (),
+        didFail: @escaping (ImagePickerError) -> ()
+    ) {
         self.filter = filter
         self.selectionLimit = selectionLimit
-        self.delegate = delegate
+        self.didCancel = didCancel
+        self.didSelect = didSelect
+        self.didFail = didFail
     }
     
     private let filter: PHPickerFilter
     private let selectionLimit: Int
-    private let delegate: PHPickerViewControllerDelegate
+    private let didCancel: (PHPickerViewController) -> ()
+    private let didSelect: (ImagePickerResult) -> ()
+    private let didFail: (ImagePickerError) -> ()
+    
+    public func makeCoordinator() -> Delegate {
+        Delegate(didCancel: didCancel, didSelect: didSelect, didFail: didFail)
+    }
     
     public func makeUIViewController(context: Context) -> PHPickerViewController {
         var configuration = PHPickerConfiguration(photoLibrary: PHPhotoLibrary.shared())
@@ -29,7 +43,7 @@ public struct ImagePickerView: UIViewControllerRepresentable {
         configuration.selectionLimit = selectionLimit
         
         let controller = PHPickerViewController(configuration: configuration)
-        controller.delegate = delegate
+        controller.delegate = context.coordinator
         return controller
     }
     
@@ -39,21 +53,18 @@ public struct ImagePickerView: UIViewControllerRepresentable {
 extension ImagePickerView {
     public class Delegate: NSObject, PHPickerViewControllerDelegate {
         
-        public init(isPresented: Binding<Bool>, didCancel: @escaping (PHPickerViewController) -> (), didSelect: @escaping (ImagePickerResult) -> (), didFail: @escaping (ImagePickerError) -> ()) {
-            self._isPresented = isPresented
+        public init(didCancel: @escaping (PHPickerViewController) -> (), didSelect: @escaping (ImagePickerResult) -> (), didFail: @escaping (ImagePickerError) -> ()) {
             self.didCancel = didCancel
             self.didSelect = didSelect
             self.didFail = didFail
         }
         
-        @Binding var isPresented: Bool
         private let didCancel: (PHPickerViewController) -> ()
         private let didSelect: (ImagePickerResult) -> ()
         private let didFail: (ImagePickerError) -> ()
         
         public func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             if results.count == 0 {
-                self.isPresented = false
                 self.didCancel(picker)
                 return
             }
@@ -63,13 +74,11 @@ extension ImagePickerView {
                 if result.itemProvider.canLoadObject(ofClass: UIImage.self) {
                     result.itemProvider.loadObject(ofClass: UIImage.self) { newImage, error in
                         if let error = error {
-                            self.isPresented = false
                             self.didFail(ImagePickerError(picker: picker, error: error))
                         } else if let image = newImage as? UIImage {
                             images.append(.init(index: i, image: image))
                         }
                         if images.count == results.count {
-                            self.isPresented = false
                             if images.count != 0 {
                                 self.didSelect(ImagePickerResult(picker: picker, images: images))
                             } else {
@@ -78,7 +87,6 @@ extension ImagePickerView {
                         }
                     }
                 } else {
-                    self.isPresented = false
                     self.didFail(ImagePickerError(picker: picker, error: ImagePickerViewError.cannotLoadObject))
                 }
             }

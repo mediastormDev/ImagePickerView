@@ -18,23 +18,32 @@ public struct UIImagePickerView: UIViewControllerRepresentable {
     ///   - allowsEditing: does it allow editing
     ///   - sourceType: source
     ///   - delegate: Image Picker Delegate
-    public init(allowsEditing: Bool = true,
-                sourceType: UIImagePickerController.SourceType = .photoLibrary,
-                delegate: UIImagePickerControllerDelegate & UINavigationControllerDelegate) {
+    public init(
+        allowsEditing: Bool = true,
+        sourceType: UIImagePickerController.SourceType = .photoLibrary,
+        didCancel: @escaping (UIImagePickerController) -> (),
+        didSelect: @escaping (UIImagePickerResult) -> ()
+    ) {
         self.allowsEditing = allowsEditing
         self.sourceType = sourceType
-        self.delegate = delegate
+        self.didCancel = didCancel
+        self.didSelect = didSelect
     }
 
     private let allowsEditing: Bool
     private let sourceType: UIImagePickerController.SourceType
-    private let delegate: UIImagePickerControllerDelegate & UINavigationControllerDelegate
+    private let didCancel: (UIImagePickerController) -> ()
+    private let didSelect: (UIImagePickerResult) -> ()
+    
+    public func makeCoordinator() -> Delegate {
+        Delegate(didCancel: didCancel, didSelect: didSelect)
+    }
     
     public func makeUIViewController(context: UIViewControllerRepresentableContext<UIImagePickerView>) -> UIImagePickerController {
         let controller = UIImagePickerController()
         controller.allowsEditing = allowsEditing
         controller.sourceType = sourceType
-        controller.delegate = delegate
+        controller.delegate = context.coordinator
         return controller
     }
     
@@ -46,13 +55,11 @@ extension UIImagePickerView {
     
     public class Delegate: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
         
-        public init(isPresented: Binding<Bool>, didCancel: @escaping (UIImagePickerController) -> (), didSelect: @escaping (UIImagePickerResult) -> ()) {
-            self._isPresented = isPresented
+        public init(didCancel: @escaping (UIImagePickerController) -> (), didSelect: @escaping (UIImagePickerResult) -> ()) {
             self.didCancel = didCancel
             self.didSelect = didSelect
         }
         
-        @Binding var isPresented: Bool
         private let didCancel: (UIImagePickerController) -> ()
         private let didSelect: (UIImagePickerResult) -> ()
         
@@ -63,12 +70,10 @@ extension UIImagePickerView {
             } else if let originalImage = info[.originalImage] as? UIImage {
                 image = originalImage
             }
-            isPresented = false
             didSelect(UIImagePickerResult(picker: picker, image: image))
         }
         
         public func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
-            isPresented = false
             didCancel(picker)
         }
     }
