@@ -1,8 +1,6 @@
 # 🌇 ImagePickerView
 
-![swift v5.3](https://img.shields.io/badge/swift-v5.3-orange.svg)
-![platform iOS](https://img.shields.io/badge/platform-iOS-blue.svg)
-![deployment target iOS 14](https://img.shields.io/badge/deployment%20target-iOS%2014-blueviolet)
+> **NOTE:** This package is a fork of [rebeloper/ImagePickerView](https://github.com/rebeloper/ImagePickerView). This fork uses `Coordinator` approach, which is the recommended way to adapt delegates to SwiftUI views. The documentation below is **not** accurate as we haven't updated it. Please refer to source code for usage.
 
 **ImagePickerView** is a lightweight library which brings `PHPickerViewController` / `UIImagePickerController` to `SwiftUI`.
 
